@@ -18,54 +18,47 @@ const ARRAY_TYPES = [
 ];
 const DOC_DB_TYPES = ['JSON', 'JSONB', 'HSTORE'];
 
-function _padWith0(v) {
+function _padWith0 (v) {
   v = '' + v;
-  return v.length == 1 ? '0' + v : v;
+  return v.length === 1 ? '0' + v : v;
 }
 
-function encodeToJSON(value, options) {
-  let className = (value && typeof(value.constructor) === 'function') ? value.constructor.name : null;
+function encodeToJSON (value, options) {
+  const className =
+    value && typeof value.constructor === 'function'
+      ? value.constructor.name
+      : null;
 
-  if(PLAIN_TYPES.indexOf(typeof(value)) > -1 || value === null) {
-
+  if (PLAIN_TYPES.indexOf(typeof value) > -1 || value === null) {
     return value;
-
-  } else if(ARRAY_TYPES.indexOf(className) > -1) {
-
-    let result = [];
-    for(let e of value) {
+  } else if (ARRAY_TYPES.indexOf(className) > -1) {
+    const result = [];
+    for (const e of value) {
       result.push(encodeToJSON(e, options));
     }
 
     return result;
-
-  } else if(value instanceof Date) {
-
+  } else if (value instanceof Date) {
     return value.toISOString();
-
-  } else if(value instanceof Buffer) {
-
+  } else if (value instanceof Buffer) {
     return value.toString(options.blobEncoding);
-
-  } else if(typeof(value) === 'object') {
-
-    let result = {};
-    for(let key in value) {
-      if(value.hasOwnProperty(key)) {
+  } else if (typeof value === 'object') {
+    const result = {};
+    for (const key in value) {
+      if (Object.prototype.hasOwnProperty.call(value, key)) {
         result[key] = encodeToJSON(value[key], options);
       }
     }
 
     return result;
-
   } else {
-    throw new Error('Can\'t encode ' + typeof(value) + ' to JSON');
+    throw new Error("Can't encode " + typeof value + ' to JSON');
   }
 }
 
 const _policies = { FAIL: 1, SKIP: 2, SET_NULL: 3 };
 
-let _defaultOptions = {
+const _defaultOptions = {
   encoder: encodeToJSON,
   undefinedPolicy: _policies.SKIP,
   copyJSONFields: true,
@@ -75,40 +68,39 @@ let _defaultOptions = {
   }
 };
 
-function _getSchemeFromModel(model, scheme) {
-  if(model.serializer && model.serializer.schemes) {
+function _getSchemeFromModel (model, scheme) {
+  if (model.serializer && model.serializer.schemes) {
     return model.serializer.schemes[scheme] || null;
   }
 
   return null;
 }
 
-function _isModel(obj, sequelize, seqVer) {
-  if(seqVer >= 4) {
+function _isModel (obj, sequelize, seqVer) {
+  if (seqVer >= 4) {
     return obj.prototype instanceof sequelize.Model;
   } else {
     return obj instanceof sequelize.Model;
   }
 }
 
-function _isModelInstance(obj, sequelize, seqVer) {
-  if(seqVer >= 4) {
+function _isModelInstance (obj, sequelize, seqVer) {
+  if (seqVer >= 4) {
     return obj instanceof sequelize.Model;
   } else {
     return obj instanceof sequelize.Instance;
   }
 }
-
-function _getModelFromInstance(inst, seqVer) {
-  if(seqVer >= 4) {
+function _getModelFromInstance (inst, seqVer) {
+  if (seqVer >= 4) {
     return inst.constructor;
   } else {
     return inst.Model;
   }
 }
 
-function _isSpecificModelInstance(obj, model, seqVer) {
-  if(seqVer >= 4) {
+function _isSpecificModelInstance (obj, model, seqVer) {
+  if (seqVer >= 4) {
     return obj instanceof model;
   } else {
     return obj instanceof model.Instance;
@@ -116,27 +108,31 @@ function _isSpecificModelInstance(obj, model, seqVer) {
 }
 
 class Serializer {
-  constructor(model, scheme, options) {
+  constructor (model, scheme, options) {
     const sequelize = model.sequelize || {};
-    let seqVer = 1 * (sequelize.constructor.version || '-').split('.', 2)[0]; // major version as number
+    const seqVer = 1 * (sequelize.constructor.version || '-').split('.', 2)[0]; // major version as number
     let schemeName = null;
 
-    if(!sequelize.Model || isNaN(seqVer) || !_isModel(model, sequelize, seqVer)) {
+    if (
+      !sequelize.Model ||
+      isNaN(seqVer) ||
+      !_isModel(model, sequelize, seqVer)
+    ) {
       throw new Error('' + model + ' is not a valid Sequelize model');
     }
 
-    if(typeof(scheme) === 'string') {
+    if (typeof scheme === 'string') {
       schemeName = scheme;
       scheme = _getSchemeFromModel(model, scheme);
-    } else if(!scheme) {
-      if(model.serializer) {
-        let schemes = model.serializer.schemes || {};
+    } else if (!scheme) {
+      if (model.serializer) {
+        const schemes = model.serializer.schemes || {};
 
-        if(model.serializer.defaultScheme) {
+        if (model.serializer.defaultScheme) {
           schemeName = model.serializer.defaultScheme;
           scheme = schemes[model.serializer.defaultScheme];
         } else {
-          if(schemes.default) {
+          if (schemes.default) {
             schemeName = 'default';
             scheme = schemes.default;
           } else {
@@ -148,8 +144,10 @@ class Serializer {
       }
     }
 
-    if(!scheme || typeof(scheme) !== 'object') {
-      throw new Error('Invalid serialization scheme for ' + model.name + ': ' + scheme);
+    if (!scheme || typeof scheme !== 'object') {
+      throw new Error(
+        'Invalid serialization scheme for ' + model.name + ': ' + scheme
+      );
     }
 
     this._origOptions = options;
@@ -182,18 +180,21 @@ class Serializer {
     this._attrList = this._compileAttributesList(scheme);
   }
 
-  _collectAttrs() {
-    let attr = this._attr;
+  _collectAttrs () {
+    const attr = this._attr;
     let a, typeName;
 
     const rawAttributes = this._model.attributes || this._model.rawAttributes;
 
-    for(let name in rawAttributes) {
-      if(!rawAttributes.hasOwnProperty(name)) continue;
+    for (const name in rawAttributes) {
+      if (!Object.prototype.hasOwnProperty.call(rawAttributes, name)) continue;
 
       a = rawAttributes[name];
 
-      if(this._options.attrFilter && this._options.attrFilter(a, this._model) === false) {
+      if (
+        this._options.attrFilter &&
+        this._options.attrFilter(a, this._model) === false
+      ) {
         continue;
       }
 
@@ -201,29 +202,29 @@ class Serializer {
 
       attr.all.push(a.fieldName);
 
-      if(a.primaryKey) attr.pk.push(a.fieldName);
-      if(a.references) attr.fk.push(a.fieldName);
-      if(a._autoGenerated) attr.auto.push(a.fieldName);
+      if (a.primaryKey) attr.pk.push(a.fieldName);
+      if (a.references) attr.fk.push(a.fieldName);
+      if (a._autoGenerated) attr.auto.push(a.fieldName);
 
-      if(typeName == 'VIRTUAL') attr.virtual.push(a.fieldName);
-      else if(typeName == 'BLOB') attr.blob.push(a.fieldName);
-      else if(DOC_DB_TYPES.indexOf(typeName) > -1) attr.doc.push(a.fieldName);
+      if (typeName === 'VIRTUAL') attr.virtual.push(a.fieldName);
+      else if (typeName === 'BLOB') attr.blob.push(a.fieldName);
+      else if (DOC_DB_TYPES.indexOf(typeName) > -1) attr.doc.push(a.fieldName);
     }
 
-    for(let name in this._model.associations) {
-      //if(!this._model.attributes.hasOwnProperty(name)) continue;
+    for (const name in this._model.associations) {
+      // if(!this._model.attributes.hasOwnProperty(name)) continue;
       a = this._model.associations[name];
       attr.assoc.push(a.as);
     }
   }
 
-  _expandAttributes(list) {
-    let attr = this._attr;
+  _expandAttributes (list) {
+    const attr = this._attr;
     let result = [];
 
-    for(let a of list) {
-      if(a[0] == '@') {
-        result = result.concat(result, this._attr[a.substr(1)]);
+    for (const a of list) {
+      if (a[0] === '@') {
+        result = result.concat(result, attr[a.substr(1)]);
       } else {
         result.push(a);
       }
@@ -232,128 +233,156 @@ class Serializer {
     return uniq(result);
   }
 
-  _compileAttributesList(scheme) {
-    let
-      include = scheme.include ? this._expandAttributes(scheme.include) : this._attr.all,
-      exclude = scheme.exclude ? this._expandAttributes(scheme.exclude) : [],
-      result = [];
+  _compileAttributesList (scheme) {
+    const include = scheme.include
+      ? this._expandAttributes(scheme.include)
+      : this._attr.all;
+    const exclude = scheme.exclude
+      ? this._expandAttributes(scheme.exclude)
+      : [];
+    const result = [];
 
-    for(let a of include) {
-      if(exclude.indexOf(a) < 0) {
-        result.push(a[0] != '.' && this._attr.all.indexOf(a) < 0 && this._attr.assoc.indexOf(a) < 0 ? '.' + a : a);
+    for (const a of include) {
+      if (exclude.indexOf(a) < 0) {
+        result.push(
+          a[0] !== '.' &&
+            this._attr.all.indexOf(a) < 0 &&
+            this._attr.assoc.indexOf(a) < 0
+            ? '.' + a
+            : a
+        );
       }
     }
 
     return result;
   }
 
-  _serializeValue(attr, value, cache) {
+  _serializeValue (attr, value, cache) {
     const a = this._model.attributes[attr];
     let returnJSON = false;
 
-    if(a && this._options.copyJSONFields) {
-      returnJSON = (a.type instanceof this._seq.Sequelize.JSON || a.type instanceof this._seq.Sequelize.JSONB);
+    if (a && this._options.copyJSONFields) {
+      returnJSON =
+        a.type instanceof this._seq.Sequelize.JSON ||
+        a.type instanceof this._seq.Sequelize.JSONB;
     }
 
-    if(returnJSON) {
-
+    if (returnJSON) {
       return value;
-
-    } else if(value instanceof Array) {
-
-      let result = [];
-      for(let e of value) {
+    } else if (value instanceof Array) {
+      const result = [];
+      for (const e of value) {
         result.push(this._serializeValue(attr, e, cache));
       }
       return result;
-
-    } else if(_isModelInstance(value, this._seq, this._seqVer)) {
-
+    } else if (_isModelInstance(value, this._seq, this._seqVer)) {
       return this._serializeAssoc(attr, value, cache);
-
     } else {
-
-      if(this._options.simpleDates && a && a.type instanceof this._seq.Sequelize.DATEONLY && value instanceof Date) {
-        value = value.getFullYear() + '-' + _padWith0(value.getMonth() + 1) + '-' + _padWith0(value.getDate());
+      if (
+        this._options.simpleDates &&
+        a &&
+        a.type instanceof this._seq.Sequelize.DATEONLY &&
+        value instanceof Date
+      ) {
+        value =
+          value.getFullYear() +
+          '-' +
+          _padWith0(value.getMonth() + 1) +
+          '-' +
+          _padWith0(value.getDate());
       }
 
       return this._options.encoder(value, this._options.encoderOptions);
     }
   }
 
-  _serializeAssoc(attr, inst, cache) {
-    let attrPath = (this._attrPath ? this._attrPath + '.' : '') + attr;
+  _serializeAssoc (attr, inst, cache) {
+    const attrPath = (this._attrPath ? this._attrPath + '.' : '') + attr;
     let serializer;
 
-    if(cache && cache[attrPath]) {
+    if (cache && cache[attrPath]) {
       serializer = cache[attrPath];
     } else {
-      let scheme = this._scheme.assoc ? this._scheme.assoc[attr] : null;
+      const scheme = this._scheme.assoc ? this._scheme.assoc[attr] : null;
 
-      serializer = new Serializer(_getModelFromInstance(inst, this._seqVer), scheme, this._origOptions);
+      serializer = new Serializer(
+        _getModelFromInstance(inst, this._seqVer),
+        scheme,
+        this._origOptions
+      );
       serializer._attrPath = attrPath;
 
-      if(cache) cache[attrPath] = serializer;
+      if (cache) cache[attrPath] = serializer;
     }
 
     return serializer.serialize(inst, cache);
   }
 
-  serialize(inst, cache) {
-    if(!_isSpecificModelInstance(inst, this._model, this._seqVer)) {
+  serialize (inst, cache) {
+    if (!_isSpecificModelInstance(inst, this._model, this._seqVer)) {
       throw new Error('Not an instance of ' + this._model.name);
     }
 
-    let output = {}, value, name;
+    let output = {};
+    let value;
+    let name;
 
-    for(let a of this._attrList) {
+    for (let a of this._attrList) {
       // if the attribute name is dot-prefixed, always treat it as a regular attribute of the model instance
-      if(a[0] !== '.' && this._attr.all.indexOf(a) > -1) {
+      if (a[0] !== '.' && this._attr.all.indexOf(a) > -1) {
         value = inst.get(a);
       } else {
-        if(a[0] === '.') a = a.substr(1);
+        if (a[0] === '.') a = a.substr(1);
 
         value = inst[a];
-        if(typeof(value) === 'function') {
+        if (typeof value === 'function') {
           value = value.call(inst);
         }
       }
 
       name = (this._scheme.as ? this._scheme.as[a] : null) || a;
 
-      if(typeof(value) !== 'undefined') {
+      if (typeof value !== 'undefined') {
         output[name] = this._serializeValue(a, value, cache);
       } else {
-        switch(this._options.undefinedPolicy) {
+        switch (this._options.undefinedPolicy) {
           case _policies.SKIP:
             break;
           case _policies.SET_NULL:
             output[name] = null;
             break;
           case _policies.FAIL:
-            throw new Error('Undefined attribute on ' + this._model.name + ' instance: ' + a);
+            throw new Error(
+              'Undefined attribute on ' + this._model.name + ' instance: ' + a
+            );
           default:
             throw new Error('Invalid undefinedPolicy setting');
         }
       }
     }
 
-    if(this._model.serializer && this._model.serializer.postSerialize) {
-      output = this._model.serializer.postSerialize.call(this._scheme, output, inst, this._schemeName);
+    if (this._model.serializer && this._model.serializer.postSerialize) {
+      output = this._model.serializer.postSerialize.call(
+        this._scheme,
+        output,
+        inst,
+        this._schemeName
+      );
     }
 
-    if(this._scheme.postSerialize) {
+    if (this._scheme.postSerialize) {
       output = this._scheme.postSerialize(output, inst);
     }
 
     return output;
   }
 
-  static serializeMany(data, model, scheme, options) {
-    let serializer = new Serializer(model, scheme, options);
-    let cache = {}, result = [];
+  static serializeMany (data, model, scheme, options) {
+    const serializer = new Serializer(model, scheme, options);
+    const cache = {};
+    const result = [];
 
-    for(let inst of data) {
+    for (const inst of data) {
       result.push(serializer.serialize(inst, cache));
     }
 
@@ -361,7 +390,7 @@ class Serializer {
   }
 }
 
-for(let p in _policies) {
+for (const p in _policies) {
   Serializer[p] = _policies[p];
 }
 

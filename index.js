@@ -77,7 +77,9 @@ function _getSchemeFromModel (model, scheme) {
 }
 
 function _isModel (obj, sequelize, seqVer) {
-  if (seqVer >= 4) {
+  if (seqVer >= 5) {
+    return obj.prototype instanceof sequelize.constructor.Model;
+  } else if (seqVer >= 4) {
     return obj.prototype instanceof sequelize.Model;
   } else {
     return obj instanceof sequelize.Model;
@@ -85,7 +87,9 @@ function _isModel (obj, sequelize, seqVer) {
 }
 
 function _isModelInstance (obj, sequelize, seqVer) {
-  if (seqVer >= 4) {
+  if (seqVer >= 5) {
+    return obj instanceof sequelize.constructor.Model;
+  } else if (seqVer >= 4) {
     return obj instanceof sequelize.Model;
   } else {
     return obj instanceof sequelize.Instance;
@@ -106,7 +110,7 @@ function _isSpecificModelInstance (obj, model, seqVer) {
     return obj instanceof model.Instance;
   }
 }
-
+// https://player.vimeo.com/external/415774410.hd.mp4?s=8f8546b2d836ca06610305807f49b050a5c9d624&profile_id=175
 class Serializer {
   constructor (model, scheme, options) {
     const sequelize = model.sequelize || {};
@@ -114,9 +118,9 @@ class Serializer {
     let schemeName = null;
 
     if (
-      !sequelize.Model ||
-      isNaN(seqVer) ||
-      !_isModel(model, sequelize, seqVer)
+      isNaN(seqVer) || seqVer >= 5
+        ? !sequelize.constructor.Model
+        : !sequelize.Model || !_isModel(model, sequelize, seqVer)
     ) {
       throw new Error('' + model + ' is not a valid Sequelize model');
     }
@@ -258,13 +262,14 @@ class Serializer {
   }
 
   _serializeValue (attr, value, cache) {
-    const a = this._model.attributes[attr];
+    const rawAttributes = this._model.attributes || this._model.rawAttributes;
+    const a = rawAttributes[attr];
     let returnJSON = false;
 
     if (a && this._options.copyJSONFields) {
       returnJSON =
-        a.type instanceof this._seq.Sequelize.JSON ||
-        a.type instanceof this._seq.Sequelize.JSONB;
+        a.type instanceof this._seq.constructor.JSON ||
+        a.type instanceof this._seq.constructor.JSONB;
     }
 
     if (returnJSON) {
@@ -281,7 +286,7 @@ class Serializer {
       if (
         this._options.simpleDates &&
         a &&
-        a.type instanceof this._seq.Sequelize.DATEONLY &&
+        a.type instanceof this._seq.constructor.DATEONLY &&
         value instanceof Date
       ) {
         value =
